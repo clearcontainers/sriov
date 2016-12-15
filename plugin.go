@@ -168,11 +168,14 @@ func handlerCreateNetwork(w http.ResponseWriter, r *http.Request) {
 	}
 
 	phys_network, ok := v["phys_network"].(string)
-	if !ok {
-		resp.Err = "Error: network incorrect or unspecified. Please provide name of physical network container will be part of (phys_network)"
-		sendResponse(resp, w)
-		return
-	}
+
+        Iface, ok := v["pf_iface"].(string)
+
+        if (phys_network == "") && (Iface == "") {
+                resp.Err = "Error: network incorrect or unspecified. Please provide either name of interface connected to physical network (pf_iface) or name of physical network (phys_network)"
+                sendResponse(resp, w)
+                return
+        }
 
         vlanid, ok := v["vlanid"].(string)
         if !ok {
@@ -188,6 +191,7 @@ func handlerCreateNetwork(w http.ResponseWriter, r *http.Request) {
 
         nw.Config.Phys_network = phys_network
         nw.Config.Vlanid, _ = strconv.Atoi(vlanid)
+        nw.Config.Iface = Iface
 
         err = SetupInterface(nw)
 
@@ -213,23 +217,22 @@ func handlerCreateNetwork(w http.ResponseWriter, r *http.Request) {
 }
 
 func SetupInterface (nw *nwVal) error {
-        if nw.Config.Phys_network == "" {
-                return fmt.Errorf("network creation should specify the physical network name (phys_network label)")
+        if nw.Config.Phys_network != "" {
+
+                map_path := network_to_if_path + nw.Config.Phys_network
+                glog.Infof("vfvlan - map path: %s", map_path)
+
+                map_file, err := os.Open(map_path)
+                if err != nil {
+                        glog.Errorf("vfvlan - Unable to open the opening physical network to iface mapping file %s", nw.Config.Phys_network)
+                        return fmt.Errorf("Error with mapping physical network to SR-IOv PF")
+                }
+
+                scanner := bufio.NewScanner(map_file)
+                scanner.Scan()
+                nw.Config.Iface = scanner.Text()
+                glog.Infof("vfvlan - interface used for network %s - %s", nw.Id, nw.Config.Iface)
         }
-
-        map_path := network_to_if_path + nw.Config.Phys_network
-        glog.Infof("vfvlan - map path: %s", map_path)
-
-        map_file, err := os.Open(map_path)
-        if err != nil {
-                glog.Errorf("vfvlan - Unable to open the opening physical network to iface mapping file %s", nw.Config.Phys_network)
-                return fmt.Errorf("Error with mapping physical network to SR-IOv PF")
-        }
-
-        scanner := bufio.NewScanner(map_file)
-        scanner.Scan()
-        nw.Config.Iface = scanner.Text()
-        glog.Infof("vfvlan - interface used for network %s - %s", nw.Id, nw.Config.Iface)
 
         if_device_path := sys_class_net_path + nw.Config.Iface + "/" + "device"
         glog.Infof("vfvlan - iface device path for network %s - %s", nw.Id, if_device_path)
@@ -466,6 +469,9 @@ func handlerDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
 
         ep := driver.endpoints.m[req.EndpointID]
         driver.pfs.m[pf] = append(driver.pfs.m[pf], ep.Config)
+
+        pf_link, _ := netlink.LinkByName(nw.Config.Iface)
+        err = netlink.LinkSetVfVlan(pf_link, ep.Config.Id, 0)
 
         glog.Infof("vfvlan - DeleteEndpoint number of VFs available %d", len(driver.pfs.m[pf]))
 	delete(driver.endpoints.m, req.EndpointID)

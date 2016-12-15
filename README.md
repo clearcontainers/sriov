@@ -26,18 +26,12 @@ The clear container runtime which support SRIOV can be found at https://github.c
 
         sudo ./sriov &
 
-3. Create a mapping file to relate the network interface name of the SRIOV NIC Physical Function (PF) and the name of physical network the NIC is part of. 
-   For example, the network interface name corresponding to PF is eth0 and the NIC is part of the physical network b2b
-        sudo mkdir /tmp/vfvlan
-        sudo touch /tmp/vfvlan/b2b
-        sudo vi /tmp/vfvlan/b2b
-
-        eth0
+3. Identify the network interface name of the SRIOV NIC Physical Function (PF) that is connected to the physical network of interest. 
 
 4. Try plugin with Docker runc containers
 
         #Create a virtual network on physical network b2b with vlanid 100
-        sudo docker network create -d sriov --internal --opt phys_network=b2b --opt vlanid=100 vfnet
+        sudo docker network create -d sriov --internal --opt pf_iface=eth0 --opt vlanid=100 vfnet
 
         #Create container on the network vfnet
         sudo docker run --net=vfnet -itd busybox top
