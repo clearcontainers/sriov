@@ -34,8 +34,9 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/docker/libnetwork/drivers/remote/api"
-	"github.com/golang/glog"
+	ipamapi "github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/gorilla/mux"
+	"github.com/golang/glog"
         "github.com/vishvananda/netlink"
 )
 
@@ -626,6 +627,113 @@ func handlerRevokeExternalConnectivity(w http.ResponseWriter, r *http.Request) {
 	req := api.RevokeExternalConnectivityResponse{}
 	if err := json.Unmarshal(body, &req); err != nil {
 		resp.Err = "Error: " + err.Error()
+		sendResponse(resp, w)
+		return
+	}
+
+	sendResponse(resp, w)
+}
+
+func ipamGetCapabilities(w http.ResponseWriter, r *http.Request) {
+	if _, err := getBody(r); err != nil {
+		glog.Infof("ipamGetCapabilities: unable to get request body [%v]", err)
+	}
+	resp := ipamapi.GetCapabilityResponse{RequiresMACAddress: true}
+	sendResponse(resp, w)
+}
+
+func ipamGetDefaultAddressSpaces(w http.ResponseWriter, r *http.Request) {
+	resp := ipamapi.GetAddressSpacesResponse{}
+	if _, err := getBody(r); err != nil {
+		glog.Infof("ipamGetDefaultAddressSpaces: unable to get request body [%v]", err)
+	}
+
+	resp.GlobalDefaultAddressSpace = ""
+	resp.LocalDefaultAddressSpace = ""
+	sendResponse(resp, w)
+}
+
+func ipamRequestPool(w http.ResponseWriter, r *http.Request) {
+	resp := ipamapi.RequestPoolResponse{}
+
+	body, err := getBody(r)
+	if err != nil {
+		resp.Error = "Error: " + err.Error()
+		sendResponse(resp, w)
+		return
+	}
+
+	req := ipamapi.RequestPoolRequest{}
+	if err := json.Unmarshal(body, &req); err != nil {
+		resp.Error = "Error: " + err.Error()
+		sendResponse(resp, w)
+		return
+	}
+
+	resp.PoolID = uuid.Generate().String()
+	resp.Pool = req.Pool
+	sendResponse(resp, w)
+}
+
+func ipamReleasePool(w http.ResponseWriter, r *http.Request) {
+	resp := ipamapi.ReleasePoolResponse{}
+
+	body, err := getBody(r)
+	if err != nil {
+		resp.Error = "Error: " + err.Error()
+		sendResponse(resp, w)
+		return
+	}
+
+	req := ipamapi.ReleasePoolRequest{}
+	if err := json.Unmarshal(body, &req); err != nil {
+		resp.Error = "Error: " + err.Error()
+		sendResponse(resp, w)
+		return
+	}
+
+	sendResponse(resp, w)
+}
+
+func ipamRequestAddress(w http.ResponseWriter, r *http.Request) {
+	resp := ipamapi.RequestAddressResponse{}
+
+	body, err := getBody(r)
+	if err != nil {
+		resp.Error = "Error: " + err.Error()
+		sendResponse(resp, w)
+		return
+	}
+
+	req := ipamapi.RequestAddressRequest{}
+	if err := json.Unmarshal(body, &req); err != nil {
+		resp.Error = "Error: " + err.Error()
+		sendResponse(resp, w)
+		return
+	}
+
+	//TODO: Should come from the subnet mask for the subnet
+	if req.Address != "" {
+		resp.Address = req.Address + "/24"
+	} else {
+		resp.Error = "Error: Request does not have IP address. Specify using --ip"
+	}
+	sendResponse(resp, w)
+}
+
+func ipamReleaseAddress(w http.ResponseWriter, r *http.Request) {
+	resp := ipamapi.ReleaseAddressResponse{}
+
+	body, err := getBody(r)
+	if err != nil {
+		resp.Error = "Error: " + err.Error()
+		sendResponse(resp, w)
+		return
+	}
+
+	req := ipamapi.ReleaseAddressRequest{}
+	if err := json.Unmarshal(body, &req); err != nil {
+		resp.Error = "Error: " + err.Error()
 		sendResponse(resp, w)
 		return
 	}
