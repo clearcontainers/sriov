@@ -102,7 +102,7 @@ func init() {
         driver.endpoints = epMap{}
         driver.endpoints.m = make(map[string]*epVal)
 
-	dbFile = "/tmp/bolt.db"
+	dbFile = "/tmp/sriov-bolt.db"
 }
 
 //We should never see any errors in this function
