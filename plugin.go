@@ -31,7 +31,7 @@ import (
         "os"
         "strconv"
         "strings"
-	"github.com/01org/ciao/ssntp/uuid"
+	"github.com/01org/ciao/uuid"
 	"github.com/boltdb/bolt"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	ipamapi "github.com/docker/libnetwork/ipams/remote/api"
